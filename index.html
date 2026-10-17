@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⌨️ 打字闪电 Typing Rush</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --accent: #38bdf8;
+    --good: #4ade80;
+    --bad: #f87171;
+    --text: #e2e8f0;
+    --dim: #64748b;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: radial-gradient(1200px 600px at 50% -10%, #1e3a5f 0%, var(--bg) 60%);
+    color: var(--text);
+    font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px;
+  }
+  h1 { font-size: 28px; letter-spacing: 2px; margin-bottom: 4px; }
+  h1 .bolt { color: var(--accent); }
+  .subtitle { color: var(--dim); font-size: 14px; margin-bottom: 20px; }
+
+  .stats {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 20px;
+  }
+  .stat {
+    background: var(--panel);
+    border: 1px solid #334155;
+    border-radius: 12px;
+    padding: 10px 18px;
+    min-width: 92px;
+    text-align: center;
+  }
+  .stat .label { font-size: 12px; color: var(--dim); text-transform: uppercase; letter-spacing: 1px; }
+  .stat .value { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  #wpm .value { color: var(--accent); }
+  #acc .value { color: var(--good); }
+  #time .value { color: #fbbf24; }
+  #score .value { color: #f472b6; }
+
+  .controls { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center; align-items: center; }
+  select, button {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  select:hover, button:hover { border-color: var(--accent); }
+  button.primary {
+    background: linear-gradient(135deg, #0ea5e9, #6366f1);
+    border: none;
+    font-weight: 700;
+    padding: 10px 28px;
+  }
+  button.primary:hover { filter: brightness(1.15); transform: translateY(-1px); }
+
+  #gameArea {
+    width: 100%;
+    max-width: 860px;
+    background: var(--panel);
+    border: 1px solid #334155;
+    border-radius: 16px;
+    padding: 28px;
+    box-shadow: 0 10px 40px rgba(0,0,0,.4);
+  }
+  #target {
+    font-family: "Cascadia Code", "Consolas", monospace;
+    font-size: 34px;
+    line-height: 1.5;
+    word-spacing: 18px;
+    margin-bottom: 20px;
+    min-height: 110px;
+    user-select: none;
+  }
+  #target span { color: var(--dim); border-radius: 4px; transition: color .1s; }
+  #target span.done { color: var(--good); }
+  #target span.wrong { color: var(--bad); background: rgba(248,113,113,.15); }
+  #target span.current { color: #fff; background: var(--accent); animation: blink 1s infinite; }
+  @keyframes blink { 50% { opacity: .55; } }
+
+  #input {
+    width: 100%;
+    background: #0f172a;
+    border: 2px solid #334155;
+    border-radius: 10px;
+    color: var(--text);
+    font-family: "Cascadia Code", "Consolas", monospace;
+    font-size: 22px;
+    padding: 12px 16px;
+    outline: none;
+  }
+  #input:focus { border-color: var(--accent); }
+  #input:disabled { opacity: .5; }
+
+  #combo { text-align: center; margin-top: 14px; font-size: 16px; height: 22px; color: #fbbf24; font-weight: 700; }
+
+  .overlay-msg {
+    text-align: center;
+    padding: 30px 0;
+  }
+  .overlay-msg h2 { font-size: 26px; margin-bottom: 12px; }
+  .overlay-msg p { color: var(--dim); }
+
+  #result { display: none; }
+  #result .big { font-size: 44px; font-weight: 800; color: var(--accent); margin: 8px 0; }
+  #result table { margin: 16px auto; border-collapse: collapse; }
+  #result td { padding: 6px 18px; font-size: 17px; }
+  #result td:first-child { color: var(--dim); text-align: right; }
+
+  #keyHint { margin-top: 18px; color: var(--dim); font-size: 13px; text-align: center; }
+  kbd {
+    background: #334155; border-radius: 4px; padding: 2px 7px;
+    font-family: monospace; font-size: 12px; border-bottom: 2px solid #1e293b;
+  }
+</style>
+</head>
+<body>
+  <h1><span class="bolt">⚡</span> 打字闪电 <span style="font-size:16px;color:var(--dim)">Typing Rush</span></h1>
+  <div class="subtitle">在时间内打出尽可能多的单词，比拼你的 WPM 和准确率！</div>
+
+  <div class="stats">
+    <div class="stat" id="time"><div class="label">剩余时间</div><div class="value" id="timeVal">60</div></div>
+    <div class="stat" id="wpm"><div class="label">WPM</div><div class="value" id="wpmVal">0</div></div>
+    <div class="stat" id="acc"><div class="label">准确率</div><div class="value" id="accVal">100%</div></div>
+    <div class="stat" id="score"><div class="label">得分</div><div class="value" id="scoreVal">0</div></div>
+  </div>
+
+  <div class="controls">
+    <select id="duration">
+      <option value="30">30 秒</option>
+      <option value="60" selected>60 秒</option>
+      <option value="120">120 秒</option>
+    </select>
+    <select id="level">
+      <option value="easy">简单（短单词）</option>
+      <option value="normal" selected>普通（混合）</option>
+      <option value="hard">困难（长单词+符号）</option>
+    </select>
+    <button class="primary" id="startBtn">开始游戏</button>
+  </div>
+
+  <div id="gameArea">
+    <div id="idleMsg" class="overlay-msg">
+      <h2>准备好挑战你的手速了吗？</h2>
+      <p>选择时长和难度，点击「开始游戏」<br>正确打完一个单词按空格即可进入下一个</p>
+    </div>
+
+    <div id="playArea" style="display:none">
+      <div id="target"></div>
+      <input id="input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="在这里输入…">
+      <div id="combo"></div>
+    </div>
+
+    <div id="result">
+      <div class="overlay-msg">
+        <h2>🎉 本轮结束！</h2>
+        <div class="big" id="finalWpm">0 WPM</div>
+        <table>
+          <tr><td>准确率</td><td id="finalAcc">-</td></tr>
+          <tr><td>得分</td><td id="finalScore">-</td></tr>
+          <tr><td>完成单词</td><td id="finalWords">-</td></tr>
+          <tr><td>错误按键</td><td id="finalErrors">-</td></tr>
+          <tr><td>历史最高 WPM</td><td id="finalBest">-</td></tr>
+        </table>
+        <p>按 <kbd>回车</kbd> 或点击「开始游戏」再来一局</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="keyHint">提示：全程不要看键盘，用 <kbd>Home</kbd> 行中间键（asdf jkl;）开始练习！错误会标红，改正后才能通过。</div>
+
+<script>
+const WORDS = {
+  easy: "the and for you that with have this from they word what would make like time just people see him now find still way look more day could come thing own tell about great little before such turn move every try stand might laugh answer grow check decide thank remember get think see say well be do".split(" "),
+  normal: "keyboard practice speed typing window screen letter number program develop system network project science language journey moment silence courage wisdom horizon puzzle rocket garden mirror ribbon pepper canyon timber vessel quartz zephyr blazer fjord glyph vortex plasma cipher matrix kernel buffer thread sprite pixel vector render anchor bridge castle drift flame globe hatch ivory jolly knelt latch muzzle notch orbit prism quell relay swivel tumble umber vault whirl yacht".split(" "),
+  hard: "typewriter@fast! punctuation#quotes$ percent% colon:; semicolon<=> brackets{} parens() slash\\| underscore_ hyphen- asterisk* ampersand& exclaim! question? tilde~ caret^ dollar$ hashtag# at-sign@ backtick` uuid-1234 hash#0xFF rgb(255,0,0) sudo rm -rf ./dir git commit -m 'msg' curl -sL https://api.dev python3 -m venv .env npm run build docker ps -aq const x = 42;".split(" ")
+};
+
+let state = null, timerId = null;
+
+const $ = id => document.getElementById(id);
+const input = $("input"), target = $("target");
+
+function pickWord() {
+  const pool = WORDS[$("level").value];
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function renderTarget(word, typed) {
+  let html = "";
+  for (let i = 0; i < word.length; i++) {
+    let cls = "";
+    if (i < typed.length) cls = typed[i] === word[i] ? "done" : "wrong";
+    else if (i === typed.length) cls = "current";
+    html += `<span class="${cls}">${word[i] === " " ? "&nbsp;" : word[i].replace(/&/g,"&amp;").replace(/</g,"&lt;")}</span>`;
+  }
+  target.innerHTML = html;
+}
+
+function start() {
+  clearInterval(timerId);
+  state = {
+    duration: +$("duration").value,
+    left: +$("duration").value,
+    word: pickWord(),
+    correctChars: 0, totalKeystrokes: 0, errors: 0,
+    wordsDone: 0, combo: 0, maxCombo: 0, score: 0
+  };
+  $("idleMsg").style.display = "none";
+  $("result").style.display = "none";
+  $("playArea").style.display = "block";
+  input.value = "";
+  input.disabled = false;
+  input.focus();
+  renderTarget(state.word, "");
+  updateHUD();
+  $("timeVal").textContent = state.left;
+  timerId = setInterval(() => {
+    state.left--;
+    $("timeVal").textContent = Math.max(0, state.left);
+    updateHUD();
+    if (state.left <= 0) end();
+  }, 1000);
+}
+
+function updateHUD() {
+  const mins = state.duration / 60;
+  const elapsed = Math.max(1, state.duration - state.left);
+  const wpm = Math.round((state.correctChars / 5) / (elapsed / 60));
+  const acc = state.totalKeystrokes ? Math.round(100 * (state.totalKeystrokes - state.errors) / state.totalKeystrokes) : 100;
+  $("wpmVal").textContent = wpm;
+  $("accVal").textContent = acc + "%";
+  $("scoreVal").textContent = state.score;
+  $("combo").textContent = state.combo >= 3 ? "🔥 连击 x" + state.combo + "（最高 " + state.maxCombo + "）" : "";
+}
+
+input.addEventListener("input", () => {
+  if (!state) return;
+  const val = input.value;
+  const prevLen = state.lastVal ? state.lastVal.length : 0;
+
+  // count keystrokes (ignore backspace deletions)
+  if (val.length > prevLen) {
+    const ch = val[val.length - 1];
+    const pos = val.length - 1;
+    if (pos < state.word.length) { // 结尾空格（用于完成单词）不计入错误
+      state.totalKeystrokes++;
+      if (ch === state.word[pos]) {
+        state.correctChars++;
+      } else {
+        state.errors++;
+        state.combo = 0;
+      }
+    }
+  }
+  state.lastVal = val;
+
+  // word completed: typed exactly matches + trailing space
+  if (val === state.word + " " || val === state.word) {
+    if (val === state.word + " " || val.length === state.word.length) {
+      const errInWord = [...val.trimEnd()].filter((c,i) => c !== state.word[i]).length;
+      if (errInWord === 0 && val === state.word + " ") {
+        state.wordsDone++;
+        state.combo++;
+        state.maxCombo = Math.max(state.maxCombo, state.combo);
+        const bonus = Math.min(state.combo, 10);
+        state.score += 10 + state.word.length + bonus * 2;
+        state.word = pickWord();
+        input.value = "";
+        state.lastVal = "";
+      }
+    }
+  }
+  renderTarget(state.word, input.value);
+  updateHUD();
+});
+
+function end() {
+  clearInterval(timerId);
+  input.disabled = true;
+  const elapsed = Math.max(1, state.duration - state.left);
+  const wpm = Math.round((state.correctChars / 5) / (elapsed / 60));
+  const acc = state.totalKeystrokes ? Math.round(100 * (state.totalKeystrokes - state.errors) / state.totalKeystrokes) : 100;
+
+  const best = Math.max(wpm, +(localStorage.getItem("typingRushBest") || 0));
+  localStorage.setItem("typingRushBest", best);
+
+  $("finalWpm").textContent = wpm + " WPM";
+  $("finalAcc").textContent = acc + "%";
+  $("finalScore").textContent = state.score;
+  $("finalWords").textContent = state.wordsDone;
+  $("finalErrors").textContent = state.errors;
+  $("finalBest").textContent = best + " WPM";
+
+  $("playArea").style.display = "none";
+  $("result").style.display = "block";
+}
+
+$("startBtn").addEventListener("click", start);
+document.addEventListener("keydown", e => {
+  if (e.key === "Enter" && (!state || input.disabled)) start();
+});
+</script>
+</body>
+</html>
