@@ -85,7 +85,7 @@
     font-size: 34px;
     line-height: 1.5;
     word-spacing: 18px;
-    margin-bottom: 20px;
+    margin-bottom: 6px;
     min-height: 110px;
     user-select: none;
   }
@@ -94,6 +94,26 @@
   #target span.wrong { color: var(--bad); background: rgba(248,113,113,.15); }
   #target span.current { color: #fff; background: var(--accent); animation: blink 1s infinite; }
   @keyframes blink { 50% { opacity: .55; } }
+
+  #meaning {
+    min-height: 27px;
+    margin-bottom: 14px;
+    text-align: center;
+    font-size: 15px;
+    line-height: 27px;
+  }
+  #meaning .tag {
+    display: inline-block;
+    margin-right: 8px;
+    padding: 0 9px;
+    border: 1px solid #334155;
+    border-radius: 7px;
+    color: var(--accent);
+    font-size: 12px;
+    line-height: 19px;
+    vertical-align: 2px;
+  }
+  #meaning .def { color: #cbd5e1; letter-spacing: .5px; }
 
   #input {
     width: 100%;
@@ -150,7 +170,8 @@
     </select>
     <select id="level">
       <option value="easy">简单（短单词）</option>
-      <option value="normal" selected>普通（混合）</option>
+      <option value="normal">普通（混合）</option>
+      <option value="dev" selected>程序员（常用词汇）</option>
       <option value="hard">困难（长单词+符号）</option>
     </select>
     <button class="primary" id="startBtn">开始游戏</button>
@@ -159,11 +180,12 @@
   <div id="gameArea">
     <div id="idleMsg" class="overlay-msg">
       <h2>准备好挑战你的手速了吗？</h2>
-      <p>选择时长和难度，点击「开始游戏」<br>正确打完一个单词按空格即可进入下一个</p>
+      <p>选择时长和难度，点击「开始游戏」<br>正确打完一个单词按空格即可进入下一个<br>💡 打字界面会显示当前单词的中文释义，边打字边记单词</p>
     </div>
 
     <div id="playArea" style="display:none">
       <div id="target"></div>
+      <div id="meaning"></div>
       <input id="input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="在这里输入…">
       <div id="combo"></div>
     </div>
@@ -187,11 +209,410 @@
   <div id="keyHint">提示：全程不要看键盘，用 <kbd>Home</kbd> 行中间键（asdf jkl;）开始练习！错误会标红，改正后才能通过。</div>
 
 <script>
+// 程序员常用词汇（单词 → 中文释义）
+const DEV_WORDS = {
+  // 基础
+  "code": "代码",
+  "bug": "程序错误、缺陷",
+  "debug": "调试、排查 Bug",
+  "fix": "修复",
+  "patch": "补丁、打补丁",
+  "test": "测试",
+  "build": "构建（编译、打包）",
+  "run": "运行（执行程序）",
+  "deploy": "部署、上线",
+  "release": "发布、发行版本",
+  "version": "版本",
+  "install": "安装",
+  "update": "更新",
+  "upgrade": "升级",
+  // 类型与数据结构
+  "type": "类型",
+  "variable": "变量",
+  "constant": "常量",
+  "literal": "字面量",
+  "function": "函数",
+  "method": "方法（对象内的函数）",
+  "class": "类",
+  "object": "对象",
+  "array": "数组",
+  "list": "列表",
+  "map": "映射（键值对应）",
+  "set": "集合",
+  "tuple": "元组",
+  "string": "字符串",
+  "integer": "整数",
+  "float": "浮点数",
+  "boolean": "布尔值（真、假）",
+  "character": "字符",
+  "null": "空值",
+  "undefined": "未定义",
+  "value": "值",
+  "key": "键",
+  "element": "元素",
+  "index": "索引、下标",
+  "scope": "作用域",
+  "closure": "闭包",
+  "memory": "内存",
+  "stack": "栈（后进先出）",
+  "queue": "队列（先进先出）",
+  "heap": "堆（动态内存区）",
+  "pointer": "指针",
+  "reference": "引用",
+  "cache": "缓存",
+  "buffer": "缓冲区",
+  "byte": "字节",
+  "bit": "位、比特",
+  // 流程与逻辑
+  "loop": "循环",
+  "iterate": "迭代、遍历",
+  "recursion": "递归",
+  "condition": "条件",
+  "branch": "分支",
+  "switch": "分支语句（开关）",
+  "break": "跳出（循环或分支）",
+  "continue": "继续（进入下一次循环）",
+  "return": "返回",
+  "callback": "回调函数",
+  "event": "事件",
+  "listener": "监听器",
+  "handler": "处理器（事件处理函数）",
+  // 并发与异步
+  "async": "异步",
+  "await": "等待（异步结果）",
+  "promise": "Promise 异步对象",
+  "thread": "线程",
+  "process": "进程",
+  "concurrency": "并发",
+  "parallel": "并行",
+  "deadlock": "死锁",
+  "mutex": "互斥锁",
+  // 异常处理
+  "exception": "异常",
+  "throw": "抛出（异常）",
+  "catch": "捕获（异常）",
+  "assert": "断言（强制检查）",
+  "error": "错误",
+  "warning": "警告",
+  "validate": "校验、验证",
+  // 函数与面向对象
+  "parameter": "参数（形参）",
+  "argument": "实参（调用时传入的值）",
+  "operator": "运算符",
+  "overload": "重载",
+  "override": "重写（覆盖父类实现）",
+  "inherit": "继承",
+  "interface": "接口",
+  "abstract": "抽象的",
+  "generic": "泛型",
+  "template": "模板",
+  "instance": "实例",
+  "constructor": "构造函数",
+  "module": "模块",
+  "import": "导入",
+  "export": "导出",
+  "package": "（软件）包",
+  "library": "库",
+  "framework": "框架",
+  "dependency": "依赖",
+  "component": "组件",
+  "plugin": "插件",
+  "widget": "控件、小组件",
+  // 网络与 Web
+  "server": "服务器",
+  "client": "客户端",
+  "request": "请求",
+  "response": "响应",
+  "header": "请求头、首部",
+  "cookie": "Cookie（浏览器存的小数据）",
+  "session": "会话",
+  "token": "令牌（身份凭证）",
+  "api": "API（应用编程接口）",
+  "endpoint": "端点（接口地址）",
+  "route": "路由",
+  "domain": "域名",
+  "protocol": "协议",
+  "socket": "套接字",
+  "port": "端口",
+  "proxy": "代理",
+  "gateway": "网关",
+  "firewall": "防火墙",
+  "bandwidth": "带宽",
+  "latency": "延迟",
+  // 数据与存储
+  "database": "数据库",
+  "query": "查询",
+  "schema": "模式（表结构）",
+  "table": "表",
+  "column": "列",
+  "row": "行",
+  "transaction": "事务",
+  "migrate": "迁移（数据或结构）",
+  "backup": "备份",
+  "restore": "恢复",
+  "log": "日志",
+  "file": "文件",
+  "directory": "目录、文件夹",
+  "folder": "文件夹",
+  "path": "路径",
+  "filename": "文件名",
+  // 工具与工程
+  "git": "Git 版本控制工具",
+  "commit": "提交（代码变更）",
+  "merge": "合并（分支）",
+  "conflict": "冲突（合并冲突）",
+  "clone": "克隆（复制仓库）",
+  "rebase": "变基（改写提交历史）",
+  "push": "推送（上传到远程仓库）",
+  "pull": "拉取（获取远程更新）",
+  "repository": "仓库",
+  "pipeline": "流水线（CI/CD）",
+  "workflow": "工作流",
+  "container": "容器",
+  "docker": "Docker 容器平台",
+  "terminal": "终端",
+  "shell": "命令行解释程序",
+  "command": "命令",
+  "script": "脚本",
+  "console": "控制台",
+  "compile": "编译",
+  "compiler": "编译器",
+  "syntax": "语法",
+  "parse": "解析",
+  "runtime": "运行时",
+  "snippet": "代码片段",
+  "refactor": "重构（改善代码结构）",
+  "optimize": "优化",
+  "benchmark": "基准测试（性能测试）",
+  "profile": "性能分析",
+  "review": "代码评审",
+  "maintain": "维护",
+  "monitor": "监控",
+  // 算法与安全
+  "algorithm": "算法",
+  "binary": "二进制",
+  "hex": "十六进制",
+  "encrypt": "加密",
+  "decrypt": "解密",
+  "hash": "哈希、散列",
+  "checksum": "校验和",
+  "password": "密码",
+  "username": "用户名",
+  "login": "登录",
+  "logout": "登出",
+  "permission": "权限",
+  "authentication": "身份认证",
+  "authorization": "授权",
+  "register": "注册",
+  "admin": "管理员",
+  "user": "用户",
+  // 前端
+  "frontend": "前端",
+  "backend": "后端",
+  "render": "渲染",
+  "layout": "布局",
+  "responsive": "响应式的",
+  "animation": "动画",
+  "gradient": "渐变",
+  "flexbox": "弹性盒布局",
+  "grid": "网格布局",
+  "margin": "外边距",
+  "padding": "内边距",
+  "border": "边框",
+  "font": "字体",
+  "opacity": "不透明度",
+  "scroll": "滚动",
+  "overflow": "溢出",
+  "viewport": "视口"
+};
+
+// 各关卡单词的中文释义（打字界面实时显示）
+const MEANINGS = Object.assign({
+  // —— 简单 ——
+  "the": "定冠词：这、那（特指）",
+  "and": "和、并且",
+  "for": "为了；for 循环",
+  "you": "你",
+  "that": "那个；引导从句",
+  "with": "和…一起；带有",
+  "have": "有、拥有",
+  "this": "这个；this 当前对象",
+  "from": "从…来",
+  "they": "他们",
+  "word": "单词；Word 文档",
+  "what": "什么",
+  "would": "将会（will 的过去式）",
+  "make": "制作、使…成为",
+  "like": "喜欢；像",
+  "time": "时间；次数",
+  "just": "只是；刚才",
+  "people": "人们",
+  "see": "看见；明白",
+  "him": "他（宾格）",
+  "now": "现在",
+  "find": "找到；查找",
+  "still": "仍然；静止的",
+  "way": "方式；道路",
+  "look": "看；显得",
+  "more": "更多",
+  "day": "天、日子",
+  "could": "能够（can 的过去式）",
+  "come": "来",
+  "thing": "东西、事情",
+  "own": "自己的；拥有",
+  "tell": "告诉",
+  "about": "关于；大约",
+  "great": "伟大的；很棒的",
+  "little": "小的；一点点",
+  "before": "在…之前",
+  "such": "这样的",
+  "turn": "转动；轮到",
+  "move": "移动",
+  "every": "每一个",
+  "try": "尝试；try 捕获异常",
+  "stand": "站立；忍受",
+  "might": "可能（may 的过去式）",
+  "laugh": "笑",
+  "answer": "回答；答案",
+  "grow": "成长、增长",
+  "check": "检查；勾选",
+  "decide": "决定",
+  "thank": "感谢",
+  "remember": "记得",
+  "get": "得到；GET 请求",
+  "think": "想、思考",
+  "say": "说",
+  "well": "好；井",
+  "be": "是（系动词原形）",
+  "do": "做；do-while 循环",
+  // —— 普通 ——
+  "keyboard": "键盘",
+  "practice": "练习",
+  "speed": "速度",
+  "typing": "打字",
+  "window": "窗户；浏览器 window 对象",
+  "screen": "屏幕",
+  "letter": "字母；信件",
+  "number": "数字；号码",
+  "program": "程序",
+  "develop": "开发",
+  "system": "系统",
+  "network": "网络",
+  "project": "项目",
+  "science": "科学",
+  "language": "语言（编程语言）",
+  "journey": "旅程",
+  "moment": "时刻",
+  "silence": "寂静",
+  "courage": "勇气",
+  "wisdom": "智慧",
+  "horizon": "地平线",
+  "puzzle": "谜题",
+  "rocket": "火箭",
+  "garden": "花园",
+  "mirror": "镜子；镜像",
+  "ribbon": "丝带；功能区",
+  "pepper": "胡椒",
+  "canyon": "峡谷",
+  "timber": "木材",
+  "vessel": "容器；船",
+  "quartz": "石英",
+  "zephyr": "西风、和风",
+  "blazer": "西装外套",
+  "fjord": "峡湾",
+  "glyph": "字形、符号",
+  "vortex": "漩涡",
+  "plasma": "等离子体",
+  "cipher": "密码、暗号",
+  "matrix": "矩阵",
+  "kernel": "操作系统内核",
+  "buffer": "缓冲区",
+  "thread": "线程",
+  "sprite": "精灵图（游戏贴图）",
+  "pixel": "像素",
+  "vector": "向量；矢量图",
+  "render": "渲染（绘图输出）",
+  "anchor": "锚点；锚定",
+  "bridge": "桥；桥接",
+  "castle": "城堡；国际象棋的「车」",
+  "drift": "漂流、漂移",
+  "flame": "火焰",
+  "globe": "地球；球体",
+  "hatch": "孵化；舱口",
+  "ivory": "象牙；象牙白",
+  "jolly": "快乐的",
+  "knelt": "跪下（kneel 的过去式）",
+  "latch": "门闩；锁存器",
+  "muzzle": "口鼻；枪口",
+  "notch": "刻痕；档位",
+  "orbit": "轨道",
+  "prism": "棱镜",
+  "quell": "平息、压制",
+  "relay": "中继；继电器",
+  "swivel": "旋转",
+  "tumble": "跌倒；翻滚",
+  "umber": "棕土色",
+  "vault": "金库；拱顶",
+  "whirl": "旋转、回旋",
+  "yacht": "游艇",
+  // —— 困难 ——
+  "typewriter@fast!": "@ 和 ! 符号混打练习",
+  "punctuation#quotes$": "# 和 $ 符号混打练习",
+  "percent%": "百分号 %",
+  "colon:;": "冒号 : 与分号 ;",
+  "semicolon<=>": "分号与比较运算符 <=>",
+  "brackets{}": "花括号 {}：代码块边界",
+  "parens()": "圆括号 ()：函数调用",
+  "slash\\|": "反斜杠与竖线 |",
+  "underscore_": "下划线 _（命名常用）",
+  "hyphen-": "连字符（减号）",
+  "asterisk*": "星号 *（通配符、乘法）",
+  "ampersand&": "与号 &（逻辑与、取地址）",
+  "exclaim!": "感叹号 !（逻辑非）",
+  "question?": "问号 ?（三元运算、可选链）",
+  "tilde~": "波浪号 ~（家目录、取反）",
+  "caret^": "脱字符 ^（异或、正则行首）",
+  "dollar$": "美元符 $（正则行尾、变量前缀）",
+  "hashtag#": "井号 #（注释、私有属性）",
+  "at-sign@": "@ 符号（装饰器、注解、邮箱）",
+  "backtick`": "反引号 `（模板字符串、命令替换）",
+  "uuid-1234": "UUID：通用唯一标识符",
+  "hash#0xFF": "十六进制字面量 0xFF",
+  "rgb(255,0,0)": "RGB 颜色：红色",
+  "sudo": "以超级用户（管理员）权限执行",
+  "rm": "删除文件的命令（慎用）",
+  "-rf": "rm 参数：递归 + 强制（高危！）",
+  "./dir": "当前目录下的 dir 文件夹",
+  "git": "Git 版本控制工具",
+  "commit": "提交（git 提交代码变更）",
+  "-m": "命令行选项（message、模块）",
+  "'msg'": "引号包住的示例字符串",
+  "curl": "命令行 HTTP 请求工具",
+  "-sL": "curl 参数：静默 + 跟随重定向",
+  "https://api.dev": "示例 API 的 HTTPS 地址",
+  "python3": "Python 3 解释器命令",
+  "venv": "Python 虚拟环境",
+  ".env": "环境变量配置文件",
+  "npm": "Node.js 包管理器",
+  "run": "运行（执行程序）",
+  "build": "构建（编译、打包）",
+  "docker": "Docker 容器平台",
+  "ps": "查看进程、容器列表",
+  "-aq": "docker ps 参数：列出全部容器 ID",
+  "const": "JavaScript 常量声明",
+  "x": "示例变量名",
+  "=": "赋值、等号运算符",
+  "42;": "示例数值 + 分号结束语句"
+}, DEV_WORDS);
+
 const WORDS = {
   easy: "the and for you that with have this from they word what would make like time just people see him now find still way look more day could come thing own tell about great little before such turn move every try stand might laugh answer grow check decide thank remember get think see say well be do".split(" "),
   normal: "keyboard practice speed typing window screen letter number program develop system network project science language journey moment silence courage wisdom horizon puzzle rocket garden mirror ribbon pepper canyon timber vessel quartz zephyr blazer fjord glyph vortex plasma cipher matrix kernel buffer thread sprite pixel vector render anchor bridge castle drift flame globe hatch ivory jolly knelt latch muzzle notch orbit prism quell relay swivel tumble umber vault whirl yacht".split(" "),
   hard: "typewriter@fast! punctuation#quotes$ percent% colon:; semicolon<=> brackets{} parens() slash\\| underscore_ hyphen- asterisk* ampersand& exclaim! question? tilde~ caret^ dollar$ hashtag# at-sign@ backtick` uuid-1234 hash#0xFF rgb(255,0,0) sudo rm -rf ./dir git commit -m 'msg' curl -sL https://api.dev python3 -m venv .env npm run build docker ps -aq const x = 42;".split(" ")
 };
+
+// 程序员关卡：可选单词取自程序员词库的键
+WORDS.dev = Object.keys(DEV_WORDS);
 
 let state = null, timerId = null;
 
@@ -203,6 +624,26 @@ function pickWord() {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
+// 查询释义：直接从释义字典取（所有单词都已配释义）
+function meaningOf(word) {
+  return Object.prototype.hasOwnProperty.call(MEANINGS, word) ? MEANINGS[word] : "";
+}
+
+// 在打字界面上显示当前单词的中文释义
+function renderMeaning(word) {
+  const el = $("meaning");
+  const def = meaningOf(word);
+  el.textContent = "";
+  if (!def) return;
+  const tag = document.createElement("span");
+  tag.className = "tag";
+  tag.textContent = "释义";
+  const val = document.createElement("span");
+  val.className = "def";
+  val.textContent = def;
+  el.append(tag, val);
+}
+
 function renderTarget(word, typed) {
   let html = "";
   for (let i = 0; i < word.length; i++) {
@@ -212,6 +653,7 @@ function renderTarget(word, typed) {
     html += `<span class="${cls}">${word[i] === " " ? "&nbsp;" : word[i].replace(/&/g,"&amp;").replace(/</g,"&lt;")}</span>`;
   }
   target.innerHTML = html;
+  renderMeaning(word);
 }
 
 function start() {
